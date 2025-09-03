@@ -1,0 +1,16 @@
+[package]
+name = "tile-download-tool"
+description = "A tool to download XYZ map tiles to a PMTiles archive"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4.5", features = ["derive"] }
+flume = "0.11"
+indicatif = "0.18.0"
+pmtiles = { version = "0.15", default-features = false, features = ["write"] }
+regex = "1.11.2"
+reqwest = "0.12"
+tokio = { version = "1", features = ["full"] }
