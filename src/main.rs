@@ -43,10 +43,11 @@ async fn main() -> Result<()> {
     let (progress_tx, progress_rx) = flume::bounded(4096);
 
     let metadata = Metadata::new(&cli);
+    let inferred_ext = tile_urls::infer_tile_format(&cli.url);
     let writer = Writer::new(
         cli.output.clone(),
         cli.force,
-        "png", // TODO: detect from URL
+        &inferred_ext,
         metadata,
         tile_list.meta,
         progress_tx.clone(),
