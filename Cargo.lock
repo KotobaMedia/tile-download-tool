@@ -1436,6 +1436,8 @@ dependencies = [
  "pmtiles",
  "regex",
  "reqwest",
+ "serde",
+ "serde_json",
  "tokio",
 ]
 

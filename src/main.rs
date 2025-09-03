@@ -2,10 +2,11 @@ use anyhow::Result;
 use clap::Parser;
 use tokio::task::JoinSet;
 
-use crate::{downloader::Downloader, progress::Progress, writer::Writer};
+use crate::{downloader::Downloader, metadata::Metadata, progress::Progress, writer::Writer};
 
 mod cli;
 mod downloader;
+mod metadata;
 mod progress;
 mod tile;
 mod tile_list;
@@ -41,17 +42,17 @@ async fn main() -> Result<()> {
     // The channel for progress updates
     let (progress_tx, progress_rx) = flume::bounded(4096);
 
+    let metadata = Metadata::new(&cli);
     let writer = Writer::new(
         cli.output.clone(),
         cli.force,
         "png", // TODO: detect from URL
-        cli.name.clone(),
-        cli.description.clone(),
-        cli.attribution.clone(),
+        metadata,
+        tile_list.meta,
         progress_tx.clone(),
     )?;
     let progress = Progress::new(tile_list.tiles.len() as u64);
-    let mut downloader = Downloader::new(&cli.url, tile_list, cli.concurrency, progress_tx);
+    let mut downloader = Downloader::new(&cli.url, tile_list.tiles, cli.concurrency, progress_tx);
 
     js.spawn(async move { downloader.download(tile_tx).await });
     js.spawn_blocking(move || writer.write(tile_rx));

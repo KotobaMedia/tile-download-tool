@@ -21,6 +21,19 @@ impl Tile {
     pub fn to_string(&self) -> String {
         format!("{}/{}/{}", self.z(), self.x(), self.y())
     }
+
+    pub fn bounds(&self) -> (f32, f32, f32, f32) {
+        let x = self.x() as f32;
+        let y = self.y() as f32;
+        let n = (1u32 << self.z()) as f32;
+        let lon_min = (x / n) * 360.0 - 180.0;
+        let lon_max = ((x + 1.0) / n) * 360.0 - 180.0;
+        let lat_rad_max = std::f32::consts::PI * (1.0 - 2.0 * y / n);
+        let lat_max = lat_rad_max.sinh().atan() * 180.0 / std::f32::consts::PI;
+        let lat_rad_min = std::f32::consts::PI * (1.0 - 2.0 * (y + 1.0) / n);
+        let lat_min = lat_rad_min.sinh().atan() * 180.0 / std::f32::consts::PI;
+        (lon_min, lat_min, lon_max, lat_max)
+    }
 }
 
 impl std::ops::Deref for Tile {

@@ -6,13 +6,12 @@ use tokio::task::JoinSet;
 use crate::{
     progress::{ProgressMsg, ProgressSender},
     tile::Tile,
-    tile_list::TileList,
     tile_urls::TileUrl,
 };
 
 pub struct Downloader {
     url_template: String,
-    tile_list: TileList,
+    tiles: Vec<Tile>,
     concurrency: usize,
     client: Client,
     progress_tx: ProgressSender,
@@ -21,7 +20,7 @@ pub struct Downloader {
 impl Downloader {
     pub fn new(
         url_template: &str,
-        tile_list: TileList,
+        tiles: Vec<Tile>,
         concurrency: usize,
         progress_tx: ProgressSender,
     ) -> Self {
@@ -35,7 +34,7 @@ impl Downloader {
 
         Self {
             url_template: url_template.to_string(),
-            tile_list,
+            tiles,
             concurrency,
             client,
             progress_tx,
@@ -46,7 +45,7 @@ impl Downloader {
         let (dlq_tx, dlq_rx) = flume::unbounded();
         let mut tasks = JoinSet::new();
 
-        let tiles = std::mem::take(&mut self.tile_list.tiles);
+        let tiles = std::mem::take(&mut self.tiles);
         tasks.spawn(async move {
             for tile in tiles {
                 dlq_tx.send_async(tile).await?;

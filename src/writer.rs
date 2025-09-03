@@ -5,8 +5,10 @@ use flume::Receiver;
 use pmtiles::{PmTilesStreamWriter, PmTilesWriter, TileType};
 
 use crate::{
+    metadata::Metadata,
     progress::{self, ProgressSender},
     tile::Tile,
+    tile_list::TileListMeta,
 };
 
 fn str_to_tile_type(s: &str) -> TileType {
@@ -31,9 +33,8 @@ impl Writer {
         output: PathBuf,
         force: bool,
         ext: &str,
-        _name: Option<String>,
-        _description: Option<String>,
-        _attribution: Option<String>,
+        metadata: Metadata,
+        tile_list_meta: TileListMeta,
         progress_tx: ProgressSender,
     ) -> Result<Self> {
         let tile_type = str_to_tile_type(ext);
@@ -44,7 +45,16 @@ impl Writer {
             .open(&output)
             .context("Failed to open output file. Hint: try specifying --force if you want to overwrite an existing file.")?;
         out_pmt_f.set_len(0)?;
-        let out_pmt = PmTilesWriter::new(tile_type);
+        let mut out_pmt = PmTilesWriter::new(tile_type)
+            .metadata(serde_json::to_string(&metadata)?.as_str())
+            .min_zoom(tile_list_meta.min_zoom)
+            .max_zoom(tile_list_meta.max_zoom);
+        if let Some((lon, lat)) = tile_list_meta.center {
+            out_pmt = out_pmt.center(lon, lat);
+        }
+        if let Some((west, south, east, north)) = tile_list_meta.bounds {
+            out_pmt = out_pmt.bounds(west, south, east, north);
+        }
         let out_pmt = out_pmt.create(out_pmt_f)?;
 
         Ok(Self {
