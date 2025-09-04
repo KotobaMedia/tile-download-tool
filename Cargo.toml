@@ -4,6 +4,10 @@ description = "A tool to download XYZ map tiles to a PMTiles archive"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+exclude = [
+    ".github/*",
+    "data/*",
+]
 
 [dependencies]
 anyhow = "1"
