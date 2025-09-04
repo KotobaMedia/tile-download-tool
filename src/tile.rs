@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(Clone)]
 pub struct Tile(pmtiles::TileCoord);
 
@@ -16,10 +18,6 @@ impl Tile {
 
     pub fn to_id(&self) -> pmtiles::TileId {
         self.0.into()
-    }
-
-    pub fn to_string(&self) -> String {
-        format!("{}/{}/{}", self.z(), self.x(), self.y())
     }
 
     pub fn bounds(&self) -> (f32, f32, f32, f32) {
@@ -41,5 +39,11 @@ impl std::ops::Deref for Tile {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl Display for Tile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}/{}/{}", self.z(), self.x(), self.y())
     }
 }

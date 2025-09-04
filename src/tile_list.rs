@@ -68,10 +68,8 @@ impl TileList {
             }
         }
 
-        tiles.sort_by(|a, b| a.to_id().cmp(&b.to_id()));
-
+        tiles.sort_by_key(|a| a.to_id());
         let meta = TileListMeta::new(min_zoom, max_zoom, &tiles);
-
         Ok(TileList { tiles, meta })
     }
 
@@ -84,7 +82,7 @@ impl TileList {
                 }
             }
         }
-        tiles.sort_by(|a, b| a.to_id().cmp(&b.to_id()));
+        tiles.sort_by_key(|a| a.to_id());
         let meta = TileListMeta::new(min, max, &tiles);
         Self { tiles, meta }
     }

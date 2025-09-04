@@ -65,11 +65,11 @@ impl Downloader {
 
                     if let Some(bytes) = download_tile(&client, tile_url).await? {
                         progress_tx
-                            .send_async(ProgressMsg::TileDownloaded(tile.clone(), bytes.len()))
+                            .send_async(ProgressMsg::Downloaded(tile.clone(), bytes.len()))
                             .await?;
                         output_tx.send_async((tile, bytes)).await?;
                     } else {
-                        progress_tx.send_async(ProgressMsg::TileSkipped()).await?;
+                        progress_tx.send_async(ProgressMsg::Skipped()).await?;
                     }
                 }
                 Ok::<_, anyhow::Error>(())

@@ -31,18 +31,18 @@ pub fn infer_tile_format(url_template: &str) -> String {
         .replace("{x}", "0")
         .replace("{y}", "0");
 
-    if let Ok(parsed) = url::Url::parse(&dummy) {
-        if let Some(seg) = parsed.path_segments().and_then(|mut s| s.next_back()) {
-            if let Some(dot) = seg.rfind('.') {
-                let ext = &seg[dot + 1..];
-                // Map aliases like pbf -> mvt
-                return match ext.to_ascii_lowercase().as_str() {
-                    "pbf" => "mvt".to_string(),
-                    other => other.to_string(),
-                };
-            }
-        }
+    if let Ok(parsed) = url::Url::parse(&dummy)
+        && let Some(seg) = parsed.path_segments().and_then(|mut s| s.next_back())
+        && let Some(dot) = seg.rfind('.')
+    {
+        let ext = &seg[dot + 1..];
+        // Map aliases like pbf -> mvt
+        return match ext.to_ascii_lowercase().as_str() {
+            "pbf" => "mvt".to_string(),
+            other => other.to_string(),
+        };
     }
+
     "png".to_string()
 }
 

@@ -68,7 +68,7 @@ impl Writer {
         for (tile, data) in tile_rx {
             self.out_pmt.add_tile(*tile, &data)?;
             self.progress_tx
-                .send(progress::ProgressMsg::TileWritten(tile))?;
+                .send(progress::ProgressMsg::Written(tile))?;
         }
         println!("Finished writing tiles, finalizing archive...");
         self.out_pmt.finalize()?;
