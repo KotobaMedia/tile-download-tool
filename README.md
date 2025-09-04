@@ -1,5 +1,7 @@
 # tile-download-tool
 
+[![Crates.io Version](https://img.shields.io/crates/v/tile-download-tool)](https://crates.io/crates/tile-download-tool)
+
 Download XYZ tiles in to a PMTiles archive
 
 ## Usage
@@ -7,6 +9,12 @@ Download XYZ tiles in to a PMTiles archive
 ```
 $ tile-download-tool https://example.com/tileset/{z}/{x}/{y}.png example_tileset.pmtiles
 ```
+
+## Installation
+
+[Compiled binaries are available on the Releases page](https://github.com/KotobaMedia/tile-download-tool/releases). Download the binary for your architecture and run it in a terminal.
+
+If you have a Rust environment installed, you may `cargo install tile-download-tool` as well.
 
 ## Options
 
