@@ -47,10 +47,8 @@ impl Downloader {
 
         let tiles = std::mem::take(&mut self.tiles);
         tasks.spawn(async move {
-            let mut index = 0;
-            for tile in tiles {
+            for (index, tile) in tiles.into_iter().enumerate() {
                 dlq_tx.send_async((index, tile)).await?;
-                index += 1;
             }
             Ok::<_, anyhow::Error>(())
         });

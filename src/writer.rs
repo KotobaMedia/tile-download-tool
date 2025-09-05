@@ -39,12 +39,22 @@ impl Writer {
     ) -> Result<Self> {
         let tile_type = str_to_tile_type(ext);
 
-        let out_pmt_f = File::options()
-            .create_new(!force)
-            .write(true)
-            .open(&output)
-            .context("Failed to open output file. Hint: try specifying --force if you want to overwrite an existing file.")?;
-        out_pmt_f.set_len(0)?;
+        // Open output according to `force` semantics:
+        // - force = true  -> create if missing, overwrite if exists (truncate)
+        // - force = false -> create only, fail if already exists
+        let out_pmt_f = if force {
+            File::options()
+                .create(true)
+                .truncate(true)
+                .write(true)
+                .open(&output)
+        } else {
+            File::options()
+                .create_new(true)
+                .write(true)
+                .open(&output)
+        }
+        .context("Failed to open output file. Hint: try specifying --force if you want to overwrite an existing file.")?;
         let mut out_pmt = PmTilesWriter::new(tile_type)
             .metadata(serde_json::to_string(&metadata)?.as_str())
             .min_zoom(tile_list_meta.min_zoom)
