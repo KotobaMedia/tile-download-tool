@@ -43,6 +43,10 @@ pub struct Cli {
     #[arg(long, default_value = "z/x/y")]
     pub tile_list_format: String,
 
+    /// A bounding box in the format "min_x,min_y,max_x,max_y" to filter the downloaded tiles by
+    #[arg(long, short)]
+    pub bbox: Option<String>,
+
     /// Limit the download concurrency
     #[arg(long, default_value_t = 10)]
     pub concurrency: usize,

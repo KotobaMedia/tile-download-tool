@@ -18,7 +18,7 @@ mod writer;
 async fn main() -> Result<()> {
     let cli = cli::Cli::parse();
 
-    let tile_list = if let Some(tile_list_path) = &cli.tile_list {
+    let mut tile_list = if let Some(tile_list_path) = &cli.tile_list {
         println!("Parsing tile list from {}...", &tile_list_path);
         let mut tile_list =
             tile_list::TileList::parse_from_file(tile_list_path, &cli.tile_list_format)?;
@@ -31,6 +31,10 @@ async fn main() -> Result<()> {
         );
         tile_list::TileList::from_zoom_range(cli.minimum_zoom, cli.maximum_zoom)
     };
+    if let Some(bbox_str) = &cli.bbox {
+        println!("Filtering tiles by bounding box {}...", bbox_str);
+        tile_list.filter_bbox(bbox_str.parse()?);
+    }
 
     println!("Found {} tiles to download.", tile_list.tiles.len());
 
