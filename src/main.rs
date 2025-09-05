@@ -63,5 +63,7 @@ async fn main() -> Result<()> {
         res??;
     }
 
+    println!("All done!");
+
     Ok(())
 }

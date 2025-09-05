@@ -25,3 +25,4 @@ url = "2"
 
 [patch.crates-io]
 pmtiles = { git = "https://github.com/keichan34/pmtiles-rs", branch = "range-index-errors" }
+# pmtiles = { path = "../pmtiles-rs" }

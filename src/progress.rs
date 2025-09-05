@@ -5,16 +5,21 @@ use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use crate::tile::Tile;
 
 pub enum ProgressMsg {
+    Log(String),
+
     Skipped(),
 
     /// A tile was downloaded. (Tile, byte size)
     Downloaded(Tile, usize),
     Written(Tile),
+
+    Finished(),
 }
 
 pub type ProgressSender = flume::Sender<ProgressMsg>;
 
 pub struct Progress {
+    m: MultiProgress,
     tile_dl: ProgressBar,
     tile_dl_bytes: ProgressBar,
     tile_written: ProgressBar,
@@ -49,6 +54,7 @@ impl Progress {
         );
 
         Self {
+            m,
             tile_dl,
             tile_dl_bytes,
             tile_written,
@@ -58,6 +64,9 @@ impl Progress {
     pub fn run(&self, rx: Receiver<ProgressMsg>) -> Result<()> {
         while let Ok(msg) = rx.recv() {
             match msg {
+                ProgressMsg::Log(s) => {
+                    self.m.println(s)?;
+                }
                 ProgressMsg::Skipped() => {
                     self.tile_dl.dec_length(1);
                     self.tile_written.dec_length(1);
@@ -79,6 +88,12 @@ impl Progress {
                     self.tile_written.inc(1);
                     let tile_str = format!("{:<14}", tile.to_string());
                     self.tile_written.set_message(tile_str);
+                }
+                ProgressMsg::Finished() => {
+                    self.tile_dl.finish();
+                    self.tile_dl_bytes.finish();
+                    self.tile_written.finish();
+                    break;
                 }
             }
         }

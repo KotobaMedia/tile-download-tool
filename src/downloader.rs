@@ -41,14 +41,16 @@ impl Downloader {
         }
     }
 
-    pub async fn download(&mut self, output_tx: Sender<(Tile, Vec<u8>)>) -> Result<()> {
+    pub async fn download(&mut self, output_tx: Sender<(usize, Tile, Vec<u8>)>) -> Result<()> {
         let (dlq_tx, dlq_rx) = flume::unbounded();
         let mut tasks = JoinSet::new();
 
         let tiles = std::mem::take(&mut self.tiles);
         tasks.spawn(async move {
+            let mut index = 0;
             for tile in tiles {
-                dlq_tx.send_async(tile).await?;
+                dlq_tx.send_async((index, tile)).await?;
+                index += 1;
             }
             Ok::<_, anyhow::Error>(())
         });
@@ -60,14 +62,14 @@ impl Downloader {
             let output_tx = output_tx.clone();
             let progress_tx = self.progress_tx.clone();
             tasks.spawn(async move {
-                while let Ok(tile) = dlq_rx.recv_async().await {
+                while let Ok((index, tile)) = dlq_rx.recv_async().await {
                     let tile_url = TileUrl::from_template(&url_template, tile.clone());
 
                     if let Some(bytes) = download_tile(&client, tile_url).await? {
                         progress_tx
                             .send_async(ProgressMsg::Downloaded(tile.clone(), bytes.len()))
                             .await?;
-                        output_tx.send_async((tile, bytes)).await?;
+                        output_tx.send_async((index, tile, bytes)).await?;
                     } else {
                         progress_tx.send_async(ProgressMsg::Skipped()).await?;
                     }
@@ -79,6 +81,9 @@ impl Downloader {
         while let Some(res) = tasks.join_next().await {
             res??;
         }
+
+        self.progress_tx
+            .send(ProgressMsg::Log("All downloads complete.".to_string()))?;
 
         Ok(())
     }

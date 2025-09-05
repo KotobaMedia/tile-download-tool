@@ -1,4 +1,4 @@
-use std::{fs::File, path::PathBuf};
+use std::{collections::BTreeMap, fs::File, path::PathBuf};
 
 use anyhow::{Context, Result};
 use flume::Receiver;
@@ -64,15 +64,34 @@ impl Writer {
         })
     }
 
-    pub fn write(mut self, tile_rx: Receiver<(Tile, Vec<u8>)>) -> Result<()> {
-        for (tile, data) in tile_rx {
-            self.out_pmt.add_tile(*tile, &data)?;
-            self.progress_tx
-                .send(progress::ProgressMsg::Written(tile))?;
+    pub fn write(mut self, tile_rx: Receiver<(usize, Tile, Vec<u8>)>) -> Result<()> {
+        let mut next = 0usize;
+        // reorder buffer
+        // TODO: use a more efficient structure
+        let mut buf = BTreeMap::new();
+        for (index, tile, data) in tile_rx {
+            buf.insert(index, (tile, data));
+            while let Some((tile, data)) = buf.remove(&next) {
+                self.out_pmt.add_tile(*tile, &data)?;
+                self.progress_tx
+                    .send(progress::ProgressMsg::Written(tile))?;
+                next += 1;
+            }
         }
-        println!("Finished writing tiles, finalizing archive...");
+
+        self.progress_tx.send(progress::ProgressMsg::Log(
+            "Finished writing tiles, finalizing archive...".to_string(),
+        ))?;
         self.out_pmt.finalize()?;
-        println!("Finished writing to {}.", self.output.display());
+
+        self.progress_tx.send(progress::ProgressMsg::Log(format!(
+            "Finished writing {} tiles to {}.",
+            next + 1,
+            self.output.display()
+        )))?;
+
+        self.progress_tx.send(progress::ProgressMsg::Finished())?;
+
         Ok(())
     }
 }
