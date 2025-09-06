@@ -28,6 +28,13 @@ pub struct Writer {
     progress_tx: ProgressSender,
 }
 
+pub struct WriteTileMsg {
+    pub index: usize,
+    pub tile: Tile,
+    /// None if the tile was not found / no data
+    pub data: Option<Vec<u8>>,
+}
+
 impl Writer {
     pub fn new(
         output: PathBuf,
@@ -74,17 +81,20 @@ impl Writer {
         })
     }
 
-    pub fn write(mut self, tile_rx: Receiver<(usize, Tile, Vec<u8>)>) -> Result<()> {
+    pub fn write(mut self, tile_rx: Receiver<WriteTileMsg>) -> Result<()> {
         let mut next = 0usize;
         // reorder buffer
         // TODO: use a more efficient structure
         let mut buf = BTreeMap::new();
-        for (index, tile, data) in tile_rx {
+        for msg in tile_rx {
+            let WriteTileMsg { index, tile, data } = msg;
             buf.insert(index, (tile, data));
             while let Some((tile, data)) = buf.remove(&next) {
-                self.out_pmt.add_tile(*tile, &data)?;
-                self.progress_tx
-                    .send(progress::ProgressMsg::Written(tile))?;
+                if let Some(data) = data {
+                    self.out_pmt.add_tile(*tile, &data)?;
+                    self.progress_tx
+                        .send(progress::ProgressMsg::Written(tile))?;
+                }
                 next += 1;
             }
         }
