@@ -7,6 +7,7 @@ use crate::{
     progress::{ProgressMsg, ProgressSender},
     tile::Tile,
     tile_urls::TileUrl,
+    writer::WriteTileMsg,
 };
 
 pub struct Downloader {
@@ -41,7 +42,7 @@ impl Downloader {
         }
     }
 
-    pub async fn download(&mut self, output_tx: Sender<(usize, Tile, Vec<u8>)>) -> Result<()> {
+    pub async fn download(&mut self, output_tx: Sender<WriteTileMsg>) -> Result<()> {
         let (dlq_tx, dlq_rx) = flume::unbounded();
         let mut tasks = JoinSet::new();
 
@@ -63,13 +64,20 @@ impl Downloader {
                 while let Ok((index, tile)) = dlq_rx.recv_async().await {
                     let tile_url = TileUrl::from_template(&url_template, tile.clone());
 
+                    let mut msg = WriteTileMsg {
+                        index,
+                        tile: tile.clone(),
+                        data: None,
+                    };
                     if let Some(bytes) = download_tile(&client, tile_url).await? {
                         progress_tx
                             .send_async(ProgressMsg::Downloaded(tile.clone(), bytes.len()))
                             .await?;
-                        output_tx.send_async((index, tile, bytes)).await?;
+                        msg.data = Some(bytes);
+                        output_tx.send_async(msg).await?;
                     } else {
                         progress_tx.send_async(ProgressMsg::Skipped()).await?;
+                        output_tx.send_async(msg).await?;
                     }
                 }
                 Ok::<_, anyhow::Error>(())
