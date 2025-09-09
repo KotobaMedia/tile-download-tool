@@ -1,8 +1,8 @@
 use anyhow::Result;
 use clap::Parser;
-use tokio::task::JoinSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio::task::JoinSet;
 
 use crate::{
     downloader::Downloader,
@@ -91,8 +91,27 @@ async fn main() -> Result<()> {
     js.spawn_blocking(move || writer.write(tile_rx));
     js.spawn_blocking(move || progress.run(progress_rx));
 
+    // Wait for all tasks to finish; if any failed, remember the first error
+    let mut first_err: Option<anyhow::Error> = None;
     while let Some(res) = js.join_next().await {
-        res??;
+        match res {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                if first_err.is_none() {
+                    first_err = Some(e);
+                }
+            }
+            Err(join_err) => {
+                if first_err.is_none() {
+                    first_err = Some(anyhow::anyhow!(join_err));
+                }
+            }
+        }
+    }
+
+    if let Some(e) = first_err {
+        // Ensure a clean exit after finalization; surface non-zero status by returning Err
+        return Err(e);
     }
 
     println!("All done!");
