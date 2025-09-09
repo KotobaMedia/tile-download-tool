@@ -15,7 +15,8 @@ pub struct Cli {
     #[arg(long, short, default_value_t = false)]
     pub force: bool,
 
-    /// If true, append to an existing PMTiles file instead of creating a new one
+    /// If true, append to an existing PMTiles file instead of creating a new one.
+    /// This works by reading the existing file and only downloading tiles that are not already present. Note that this assumes the tiles in the existing PMTiles file are in order.
     #[arg(long, short, default_value_t = false)]
     pub append: bool,
 

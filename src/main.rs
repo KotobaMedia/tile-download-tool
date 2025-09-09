@@ -11,6 +11,7 @@ use crate::{
     writer::Writer,
 };
 
+mod append_reader;
 mod cli;
 mod downloader;
 mod metadata;
@@ -23,7 +24,7 @@ mod writer;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let cli = cli::Cli::parse();
+    let mut cli = cli::Cli::parse();
 
     let mut tile_list = if let Some(tile_list_path) = &cli.tile_list {
         println!("Parsing tile list from {}...", &tile_list_path);
@@ -43,7 +44,27 @@ async fn main() -> Result<()> {
         tile_list.filter_bbox(bbox_str.parse()?);
     }
 
-    println!("Found {} tiles to download.", tile_list.tiles.len());
+    let expected_tile_len = tile_list.tiles.len();
+    println!(
+        "Expected number of tiles to download: {}",
+        expected_tile_len
+    );
+
+    let append_reader = if cli.append {
+        println!("Reading existing tiles from {}...", cli.output.display());
+        let append_reader = append_reader::AppendReader::new(&cli.output).await?;
+        let existing_tiles = append_reader.get_tiles().await?;
+        tile_list.remove_existing(&existing_tiles);
+        println!(
+            "Skipping {} tiles already present in the existing PMTiles file.",
+            existing_tiles.len()
+        );
+        // --append implies --force
+        cli.force = true;
+        Some(append_reader)
+    } else {
+        None
+    };
 
     let mut js = JoinSet::new();
     // Create a channel for downloaded tile data
@@ -65,7 +86,7 @@ async fn main() -> Result<()> {
         tile_list.meta,
         progress_tx.clone(),
     )?;
-    let progress = Progress::new(tile_list.tiles.len() as u64);
+    let progress = Progress::new(expected_tile_len as u64);
     let mut downloader = Downloader::new(
         &cli.url,
         tile_list.tiles,
@@ -87,9 +108,18 @@ async fn main() -> Result<()> {
         }
     });
 
-    js.spawn(async move { downloader.download(tile_tx).await });
+    // we start the writer and progress first so that they are ready to receive tiles
     js.spawn_blocking(move || writer.write(tile_rx));
     js.spawn_blocking(move || progress.run(progress_rx));
+
+    // preload existing tiles if appending
+    let mut download_start_idx = 0usize;
+    if let Some(ar) = append_reader {
+        let tile_tx = tile_tx.clone();
+        download_start_idx = ar.read_tiles(tile_tx).await?;
+    }
+    // start the downloader after all existing tiles have been queued, so that indexing is correct
+    js.spawn(async move { downloader.download(download_start_idx, tile_tx).await });
 
     // Wait for all tasks to finish; if any failed, remember the first error
     let mut first_err: Option<anyhow::Error> = None;

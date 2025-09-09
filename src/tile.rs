@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Tile(pmtiles::TileCoord);
 
 impl Tile {
@@ -31,6 +31,12 @@ impl Tile {
         let lat_rad_min = std::f32::consts::PI * (1.0 - 2.0 * (y + 1.0) / n);
         let lat_min = lat_rad_min.sinh().atan() * 180.0 / std::f32::consts::PI;
         (lon_min, lat_min, lon_max, lat_max)
+    }
+}
+
+impl From<pmtiles::TileId> for Tile {
+    fn from(tc: pmtiles::TileId) -> Self {
+        Self(tc.into())
     }
 }
 

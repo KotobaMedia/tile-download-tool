@@ -48,14 +48,18 @@ impl Downloader {
         }
     }
 
-    pub async fn download(&mut self, output_tx: Sender<WriteTileMsg>) -> Result<()> {
+    pub async fn download(
+        &mut self,
+        start_idx: usize,
+        output_tx: Sender<WriteTileMsg>,
+    ) -> Result<()> {
         let (dlq_tx, dlq_rx) = flume::unbounded();
         let mut tasks = JoinSet::new();
 
         let tiles = std::mem::take(&mut self.tiles);
         tasks.spawn(async move {
             for (index, tile) in tiles.into_iter().enumerate() {
-                if dlq_tx.send_async((index, tile)).await.is_err() {
+                if dlq_tx.send_async((start_idx + index, tile)).await.is_err() {
                     break;
                 }
             }

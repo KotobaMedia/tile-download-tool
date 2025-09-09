@@ -90,9 +90,9 @@ impl Progress {
                     self.tile_written.set_message(tile_str);
                 }
                 ProgressMsg::Finished() => {
-                    self.tile_dl.finish();
-                    self.tile_dl_bytes.finish();
-                    self.tile_written.finish();
+                    self.tile_dl.abandon();
+                    self.tile_dl_bytes.abandon();
+                    self.tile_written.abandon();
                     break;
                 }
             }

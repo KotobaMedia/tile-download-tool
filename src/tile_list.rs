@@ -1,4 +1,5 @@
 use std::{
+    collections::HashSet,
     fs::File,
     io::{BufRead, BufReader},
     str::FromStr,
@@ -112,6 +113,14 @@ impl TileList {
                 (new_min_lat + new_max_lat) / 2.0,
             ));
         }
+    }
+
+    pub fn remove_existing(&mut self, existing: &HashSet<Tile>) {
+        self.tiles.retain(|tile| !existing.contains(tile));
+        let (min_zoom, max_zoom) = self.tiles.iter().fold((32u8, 0u8), |(min_z, max_z), t| {
+            (min_z.min(t.z()), max_z.max(t.z()))
+        });
+        self.meta = TileListMeta::new(min_zoom, max_zoom, &self.tiles);
     }
 }
 
