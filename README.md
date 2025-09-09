@@ -31,5 +31,7 @@ If you have a Rust environment installed, you may `cargo install tile-download-t
     * ,etc. A regex will be compiled based on the format and used for matching.
 * `--bbox, -b` - A bounding box in the format "min_x,min_y,max_x,max_y" to filter the downloaded tiles
 * `--concurrency` - limit the download concurrency (defaults to 10)
+* `--append, -a` - append to an existing PMTiles file; preloads existing tiles and downloads only the missing ones. Note that this only works when the PMTiles file in question has been downloaded in order -- `tile-download-tool` does this, so any archive partially downloaded by this tool will be able to be appended to.
+* `--force, -f` - overwrite the output file if it already exists
 
 See all options with `--help`
