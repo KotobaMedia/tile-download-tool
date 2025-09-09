@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, fs::File, path::PathBuf};
 use anyhow::{Context, Result};
 use flume::Receiver;
 use pmtiles::{PmTilesStreamWriter, PmTilesWriter, TileType};
+use tempfile::NamedTempFile;
 
 use crate::{
     metadata::Metadata,
@@ -22,9 +23,11 @@ fn str_to_tile_type(s: &str) -> TileType {
 }
 
 pub struct Writer {
+    force: bool,
     output: PathBuf,
 
     out_pmt: PmTilesStreamWriter<File>,
+    out_pmt_f: NamedTempFile,
     progress_tx: ProgressSender,
 }
 
@@ -46,22 +49,19 @@ impl Writer {
     ) -> Result<Self> {
         let tile_type = str_to_tile_type(ext);
 
-        // Open output according to `force` semantics:
-        // - force = true  -> create if missing, overwrite if exists (truncate)
-        // - force = false -> create only, fail if already exists
-        let out_pmt_f = if force {
-            File::options()
-                .create(true)
-                .truncate(true)
-                .write(true)
-                .open(&output)
-        } else {
-            File::options()
-                .create_new(true)
-                .write(true)
-                .open(&output)
+        if !force && output.exists() {
+            return Err(anyhow::anyhow!(
+                "Output file {} already exists. Use --force to overwrite.",
+                output.display()
+            ));
         }
-        .context("Failed to open output file. Hint: try specifying --force if you want to overwrite an existing file.")?;
+
+        let out_pmt_f = NamedTempFile::new_in(
+            output
+                .parent()
+                .context("Output path must have a parent directory")?,
+        )?;
+
         let mut out_pmt = PmTilesWriter::new(tile_type)
             .metadata(serde_json::to_string(&metadata)?.as_str())
             .min_zoom(tile_list_meta.min_zoom)
@@ -72,11 +72,13 @@ impl Writer {
         if let Some((west, south, east, north)) = tile_list_meta.bounds {
             out_pmt = out_pmt.bounds(west, south, east, north);
         }
-        let out_pmt = out_pmt.create(out_pmt_f)?;
+        let out_pmt = out_pmt.create(out_pmt_f.reopen()?)?;
 
         Ok(Self {
+            force,
             output,
             out_pmt,
+            out_pmt_f,
             progress_tx,
         })
     }
@@ -103,6 +105,11 @@ impl Writer {
             "Finished writing tiles, finalizing archive...".to_string(),
         ))?;
         self.out_pmt.finalize()?;
+        if self.force {
+            self.out_pmt_f.persist(&self.output)?;
+        } else {
+            self.out_pmt_f.persist_noclobber(&self.output)?;
+        }
 
         self.progress_tx.send(progress::ProgressMsg::Log(format!(
             "Finished writing {} tiles to {}.",

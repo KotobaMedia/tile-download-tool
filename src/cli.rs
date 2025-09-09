@@ -15,6 +15,10 @@ pub struct Cli {
     #[arg(long, short, default_value_t = false)]
     pub force: bool,
 
+    /// If true, append to an existing PMTiles file instead of creating a new one
+    #[arg(long, short, default_value_t = false)]
+    pub append: bool,
+
     /// Name of the tileset (for PMTiles metadata)
     #[arg(long, short = 'n')]
     pub name: Option<String>,
