@@ -2,7 +2,7 @@
 name = "tile-download-tool"
 description = "A tool to download XYZ map tiles to a PMTiles archive"
 repository = "https://github.com/KotobaMedia/tile-download-tool"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 license = "MIT"
 exclude = [
