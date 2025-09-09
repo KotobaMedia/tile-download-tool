@@ -1,8 +1,15 @@
 use anyhow::Result;
 use clap::Parser;
 use tokio::task::JoinSet;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
-use crate::{downloader::Downloader, metadata::Metadata, progress::Progress, writer::Writer};
+use crate::{
+    downloader::Downloader,
+    metadata::Metadata,
+    progress::{Progress, ProgressMsg},
+    writer::Writer,
+};
 
 mod cli;
 mod downloader;
@@ -45,6 +52,8 @@ async fn main() -> Result<()> {
     let (tile_tx, tile_rx) = flume::bounded(4096);
     // The channel for progress updates
     let (progress_tx, progress_rx) = flume::bounded(4096);
+    // Cancellation signal shared with tasks
+    let cancel = Arc::new(RwLock::new(false));
 
     let metadata = Metadata::new(&cli);
     let inferred_ext = tile_urls::infer_tile_format(&cli.url);
@@ -57,7 +66,26 @@ async fn main() -> Result<()> {
         progress_tx.clone(),
     )?;
     let progress = Progress::new(tile_list.tiles.len() as u64);
-    let mut downloader = Downloader::new(&cli.url, tile_list.tiles, cli.concurrency, progress_tx);
+    let mut downloader = Downloader::new(
+        &cli.url,
+        tile_list.tiles,
+        cli.concurrency,
+        progress_tx.clone(),
+        cancel.clone(),
+    );
+
+    // Handle Ctrl-C to trigger shutdown
+    let progress_tx2 = progress_tx.clone();
+    let cancel2 = cancel.clone();
+    tokio::spawn(async move {
+        if tokio::signal::ctrl_c().await.is_ok() {
+            let _ = progress_tx2.send(ProgressMsg::Log(
+                "Ctrl-C received; cancelling downloads and finalizing...".to_string(),
+            ));
+            let mut w = cancel2.write().await;
+            *w = true;
+        }
+    });
 
     js.spawn(async move { downloader.download(tile_tx).await });
     js.spawn_blocking(move || writer.write(tile_rx));

@@ -1,7 +1,9 @@
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use flume::Sender;
 use reqwest::{Client, ClientBuilder};
 use tokio::task::JoinSet;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use crate::{
     progress::{ProgressMsg, ProgressSender},
@@ -16,6 +18,7 @@ pub struct Downloader {
     concurrency: usize,
     client: Client,
     progress_tx: ProgressSender,
+    cancel: Arc<RwLock<bool>>,
 }
 
 impl Downloader {
@@ -24,6 +27,7 @@ impl Downloader {
         tiles: Vec<Tile>,
         concurrency: usize,
         progress_tx: ProgressSender,
+        cancel: Arc<RwLock<bool>>,
     ) -> Self {
         let client = ClientBuilder::new()
             .user_agent(format!(
@@ -39,6 +43,7 @@ impl Downloader {
             concurrency,
             client,
             progress_tx,
+            cancel,
         }
     }
 
@@ -49,7 +54,9 @@ impl Downloader {
         let tiles = std::mem::take(&mut self.tiles);
         tasks.spawn(async move {
             for (index, tile) in tiles.into_iter().enumerate() {
-                dlq_tx.send_async((index, tile)).await?;
+                if dlq_tx.send_async((index, tile)).await.is_err() {
+                    break;
+                }
             }
             Ok::<_, anyhow::Error>(())
         });
@@ -60,8 +67,13 @@ impl Downloader {
             let dlq_rx = dlq_rx.clone();
             let output_tx = output_tx.clone();
             let progress_tx = self.progress_tx.clone();
+            let cancel = self.cancel.clone();
             tasks.spawn(async move {
                 while let Ok((index, tile)) = dlq_rx.recv_async().await {
+                    if *cancel.read().await {
+                        break;
+                    }
+
                     let tile_url = TileUrl::from_template(&url_template, tile.clone());
 
                     let mut msg = WriteTileMsg {
