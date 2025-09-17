@@ -1107,8 +1107,8 @@ checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 
 [[package]]
 name = "pmtiles"
-version = "0.15.0"
-source = "git+https://github.com/keichan34/pmtiles-rs?branch=range-index-errors#e061399ab02d8bf2be8e601bc95fd3f8fb279979"
+version = "0.16.0"
+source = "git+https://github.com/keichan34/pmtiles-rs?branch=range-index-errors#171b6a982f75f666cf1b47213e86dae1101f6637"
 dependencies = [
  "async-compression",
  "async-stream",
@@ -1270,7 +1270,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
